@@ -1,5 +1,3 @@
-from __future__ import print_function # for python 2.7 users
-
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
@@ -18,7 +16,7 @@ from glob import glob
 import os
 
 # Face classifier location
-faceCascade = cv2.CascadeClassifier('/home/daniel/opencv-3.4.0/data/haarcascades/haarcascade_frontalface_default.xml')
+faceCascade = cv2.CascadeClassifier('/home/daniel/opencv-3.3.1/data/haarcascades/haarcascade_frontalface_default.xml')
 
 #################################################### Functions ########################################################
 #  VGG-Face follows the structure of VGG16, only the training set is different (and the weights). It has 16 trainable layers,
@@ -130,6 +128,9 @@ def pred(kmodel, crpimg, transform=False):
     print(best_index, best_name[0], out[0,best_index], [np.min(out), np.max(out)])
 
 ############################################################# MAIN CODE ##################################################
+# Test using CPU
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
 
 facemodel = vgg_face_blank()
 #facemodel.summary()
@@ -161,4 +162,4 @@ for fn in glob(PATH + '/vgg_face_test/*.jpg'):
 	crpim = cv2.resize(crpim, (224,224))
 
 	pred(facemodel, crpim, transform=False)
-	#pred(facemodel, crpim, transform=True)
+	pred(facemodel, crpim, transform=True)
