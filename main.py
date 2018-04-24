@@ -3,6 +3,7 @@ from PIL import Image
 import numpy as np
 import math
 import copy
+import pathlib
 
 from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Flatten, Dropout, Activation, Lambda, Permute, Reshape
@@ -141,11 +142,33 @@ description = data['meta'][0,0].classes[0,0].description
 
 copy_mat_to_keras(facemodel)
 
-# Gets the current path
+# Gets the path for the current working directory
 PATH = os.getcwd()
 
 # Opens a video
 vidcap = cv2.VideoCapture(PATH + '/replay/train/real/client001_session01_webcam_authenticate_adverse_1.mov')
+frameRate = vidcap.get(5)/10 # Gets the frame rate of the video divided by 10 to obtain 10x frames more
+#print("Frame Rate:%d , %d" % (frameRate, math.floor(frameRate)))
+count = 1
+#Creates a directory to save image frames, if directory already exists, delete it and create a new one
+try:
+	pathlib.Path(PATH + '/Frames').mkdir(parents=True, exist_ok=True) #Creates a directory to save the frames
+except FileExistsError:
+	shutil.rmtree(PATH + '/Frames/')
+	pathlib.Path(PATH + '/Frames').mkdir(parents=True, exist_ok=True) #Creates a directory to save the frames
+	
+while(vidcap.isOpened()):
+	frameID = vidcap.get(1) # Gets the current frame number
+	success, image = vidcap.read()
+	if( success != True):
+		break
+	if((frameID % math.floor(frameRate)) == 0):
+		cv2.imwrite(PATH + "/Frames/frame_%d.jpg" % count, image) # Save frame as a jpeg file
+		success,image = vidcap.read()
+		print('Read a new frame: ', success, frameID)
+		count += 1
+
+"""
 success,image = vidcap.read()
 count = 0
 success = True
@@ -154,7 +177,7 @@ while success:
 	success,image = vidcap.read()
 	print('Read a new frame: ', success)
 	count += 1
-
+"""
 ########################################################## Test VGG-Face code ##########################################
 """
 #Tests all the images in the directory, used to test vggface
