@@ -128,9 +128,8 @@ def pred(kmodel, crpimg, transform=False):
     print(best_index, best_name[0], out[0,best_index], [np.min(out), np.max(out)])
 
 ############################################################# MAIN CODE ##################################################
-# Test using CPU
+# Use this line to run using CPU
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
-
 
 facemodel = vgg_face_blank()
 #facemodel.summary()
@@ -145,6 +144,19 @@ copy_mat_to_keras(facemodel)
 # Gets the current path
 PATH = os.getcwd()
 
+# Opens a video
+vidcap = cv2.VideoCapture(PATH + '/replay/train/real/client001_session01_webcam_authenticate_adverse_1.mov')
+success,image = vidcap.read()
+count = 0
+success = True
+while success:
+	cv2.imwrite(PATH + "/Frames/frame%d.jpg" % count, image) # Save frame as a jpeg file
+	success,image = vidcap.read()
+	print('Read a new frame: ', success)
+	count += 1
+
+########################################################## Test VGG-Face code ##########################################
+"""
 #Tests all the images in the directory, used to test vggface
 for fn in glob(PATH + '/vgg_face_test/*.jpg'):
 	image = cv2.imread(fn)
@@ -162,4 +174,5 @@ for fn in glob(PATH + '/vgg_face_test/*.jpg'):
 	crpim = cv2.resize(crpim, (224,224))
 
 	pred(facemodel, crpim, transform=False)
-	pred(facemodel, crpim, transform=True)
+	#pred(facemodel, crpim, transform=True) Better for low res images (?)
+"""
