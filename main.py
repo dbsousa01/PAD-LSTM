@@ -145,39 +145,43 @@ copy_mat_to_keras(facemodel)
 # Gets the path for the current working directory
 PATH = os.getcwd()
 
+############################################ Convert a video to sequence of frames #######################################
 # Opens a video
-vidcap = cv2.VideoCapture(PATH + '/replay/train/real/client001_session01_webcam_authenticate_adverse_1.mov')
-frameRate = vidcap.get(5)/10 # Gets the frame rate of the video divided by 10 to obtain 10x frames more
-#print("Frame Rate:%d , %d" % (frameRate, math.floor(frameRate)))
-count = 1
-#Creates a directory to save image frames, if directory already exists, delete it and create a new one
-try:
-	pathlib.Path(PATH + '/Frames').mkdir(parents=True, exist_ok=True) #Creates a directory to save the frames
-except FileExistsError:
-	shutil.rmtree(PATH + '/Frames/')
-	pathlib.Path(PATH + '/Frames').mkdir(parents=True, exist_ok=True) #Creates a directory to save the frames
-	
-while(vidcap.isOpened()):
-	frameID = vidcap.get(1) # Gets the current frame number
-	success, image = vidcap.read()
-	if( success != True):
-		break
-	if((frameID % math.floor(frameRate)) == 0):
-		cv2.imwrite(PATH + "/Frames/frame_%d.jpg" % count, image) # Save frame as a jpeg file
-		success,image = vidcap.read()
-		print('Read a new frame: ', success, frameID)
-		count += 1
+VidPath = '/replay/train/real/'
 
-"""
-success,image = vidcap.read()
-count = 0
-success = True
-while success:
-	cv2.imwrite(PATH + "/Frames/frame%d.jpg" % count, image) # Save frame as a jpeg file
-	success,image = vidcap.read()
-	print('Read a new frame: ', success)
-	count += 1
-"""
+for fn in glob(PATH + VidPath + '*.mov'):
+	vidcap = cv2.VideoCapture(fn)
+	path = os.path.splitext(os.path.basename(fn))[0]
+	frameRate = vidcap.get(5)/5 # Gets the frame rate of the video divided by 5 to obtain 5 frames per second
+	#print("Frame Rate:%d , %d" % (frameRate, math.floor(frameRate)))
+	count = 1
+
+	#Creates a directory to save image frames
+	pathlib.Path(PATH + '/Frames' + VidPath + path).mkdir(parents=True, exist_ok=True) #Creates a directory to save the frames
+		
+	while(vidcap.isOpened()):
+		frameID = vidcap.get(1) # Gets the current frame number
+		success, image = vidcap.read()
+		if( success != True):
+			break
+		if((frameID % math.floor(frameRate)) == 0):
+			gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+			#detect faces in the image: TER CUIDADO, ESTE ALGORITMO DETECTA TODAS AS CARAS NA IMAGEM - pode ser um problema
+			faces = faceCascade.detectMultiScale(gray, 1.3, 5)
+
+			#draw rectangle around the faces:
+			for (x,y,w,h) in faces:
+			   	cv2.rectangle(image, (x,y), (x+w,y+h), (0,0,0),0)
+
+			#Crops the images and resizes it
+			crpim = image[y:y+h, x:x+w]
+			crpim = cv2.resize(crpim, (224,224))
+
+			cv2.imwrite(PATH + '/Frames' + VidPath + path + '/frame_%d.jpg' % count, crpim) # Save frame as a jpeg file
+			success,image = vidcap.read()
+			#print('Read a new frame: ', success, frameID)
+			count += 1
+
 ########################################################## Test VGG-Face code ##########################################
 """
 #Tests all the images in the directory, used to test vggface
