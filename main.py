@@ -4,16 +4,20 @@ import numpy as np
 import math
 import copy
 import pathlib
+import time 
 
 from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Flatten, Dropout, Activation, Lambda, Permute, Reshape
 from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.utils import np_utils
+from sklearn.utils import shuffle
+from sklearn.cross_validation import train_test_split
 from keras import backend as K
 K.set_image_data_format( 'channels_last' ) # WARNING : important for images and tensors dimensions ordering
 
 import cv2
 from scipy.io import loadmat
-from glob import glob
+import glob
 import os
 
 # Face classifier location
@@ -128,7 +132,7 @@ def pred(kmodel, crpimg, transform=False):
     best_name = description[best_index,0]
     print(best_index, best_name[0], out[0,best_index], [np.min(out), np.max(out)])
 
-############################################################# MAIN CODE ##################################################
+############################################################# TRAINING NN ##################################################
 # Use this line to run using CPU
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
@@ -144,7 +148,12 @@ copy_mat_to_keras(facemodel)
 
 # Gets the path for the current working directory
 PATH = os.getcwd()
+count = 0
+for image in glob.glob(PATH + '/Frames/replay/train/**/**/*.jpg', recursive = True):
+	count += 1
 
+print(count)
+"""
 ############################################ Convert a video to sequence of frames #######################################
 # Opens a video
 VidPath = '/replay/devel/attack/hand/'
@@ -187,6 +196,7 @@ for fn in glob(PATH + VidPath + '*.mov'):
 				success,image = vidcap.read()
 				#print('Read a new frame: ', success, frameID)
 				count += 1
+"""
 ########################################################## Test VGG-Face code ##########################################
 """
 #Tests all the images in the directory, used to test vggface
