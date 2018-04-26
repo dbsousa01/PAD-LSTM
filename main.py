@@ -147,7 +147,7 @@ PATH = os.getcwd()
 
 ############################################ Convert a video to sequence of frames #######################################
 # Opens a video
-VidPath = '/replay/train/real/'
+VidPath = '/replay/devel/attack/hand/'
 
 for fn in glob(PATH + VidPath + '*.mov'):
 	vidcap = cv2.VideoCapture(fn)
@@ -167,39 +167,40 @@ for fn in glob(PATH + VidPath + '*.mov'):
 		if((frameID % math.floor(frameRate)) == 0):
 			gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 			#detect faces in the image: TER CUIDADO, ESTE ALGORITMO DETECTA TODAS AS CARAS NA IMAGEM - pode ser um problema
-			faces = faceCascade.detectMultiScale(gray, 1.3, 5)
+			faces = faceCascade.detectMultiScale(image, 1.3, 5)
 
 			#draw rectangle around the faces:
 			for (x,y,w,h) in faces:
 			   	cv2.rectangle(image, (x,y), (x+w,y+h), (0,0,0),0)
 
-			#Crops the images and resizes it
-			crpim = image[y:y+h, x:x+w]
-			crpim = cv2.resize(crpim, (224,224))
 
-			cv2.imwrite(PATH + '/Frames' + VidPath + path + '/frame_%d.jpg' % count, crpim) # Save frame as a jpeg file
-			success,image = vidcap.read()
-			#print('Read a new frame: ', success, frameID)
-			count += 1
+			try:
+				(x,y,w,h)
+			except NameError:
+				print('Oops some variable was not defined, face not detected')
+			else:
+				#Crops the images and resizes it
+				crpim = image[y:y+h, x:x+w]
+				crpim = cv2.resize(crpim, (224,224))
 
+				cv2.imwrite(PATH + '/Frames' + VidPath + path + '/frame_%d.jpg' % count, crpim) # Save frame as a jpeg file
+				success,image = vidcap.read()
+				#print('Read a new frame: ', success, frameID)
+				count += 1
 ########################################################## Test VGG-Face code ##########################################
 """
 #Tests all the images in the directory, used to test vggface
 for fn in glob(PATH + '/vgg_face_test/*.jpg'):
 	image = cv2.imread(fn)
 	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
 	#detect faces in the image: TER CUIDADO, ESTE ALGORITMO DETECTA TODAS AS CARAS NA IMAGEM - pode ser um problema
 	faces = faceCascade.detectMultiScale(gray, 1.3, 5)
-
 	#draw rectangle around the faces:
 	for (x,y,w,h) in faces:
 	   	cv2.rectangle(image, (x,y), (x+w,y+h), (0,255,0),2)
-
 	#Crops the images and resizes it
 	crpim = image[y:y+h, x:x+w]
 	crpim = cv2.resize(crpim, (224,224))
-
 	pred(facemodel, crpim, transform=False)
 	#pred(facemodel, crpim, transform=True) Better for low res images (?)
 """
