@@ -5,17 +5,20 @@ import math
 import copy
 import pathlib
 import time 
+import random
+import sys
 
 from keras.preprocessing import image
 from keras.applications.vgg16 import preprocess_input, decode_predictions
 #from keras.applications.imagenet_utils import preprocess_input
 #from imagenet_utils import decode_predictions
+from keras import optimizers
 from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Flatten, Dropout, Activation, Lambda, Permute, Reshape
 from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras.utils import np_utils
 from sklearn.utils import shuffle
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 from keras import backend as K
 K.set_image_data_format( 'channels_last' ) # WARNING : important for images and tensors dimensions ordering
 
@@ -165,41 +168,24 @@ def insert_intermediate_layer_in_keras(model, layer_id, new_layer):
     new_model = Model(input=layers[0].input, output=x)
     return new_model
 
-############################################################ CREATE AND CHANGE THE NEURAL NETWORK #########################################
-# Use this line to run using CPU
-#os.environ['CUDA_VISIBLE_DEVICES'] = ''
-
-facemodel = vgg_face_blank()
-#facemodel.summary()
-
-#Loads the weights from a .mat file
-data = loadmat('vgg-face.mat', matlab_compatible=False, struct_as_record=False)
-l = data['layers']
-description = data['meta'][0,0].classes[0,0].description
-
-copy_mat_to_keras(facemodel)
-facemodel.summary()
-
-facemodel = replace_intermediate_layer_in_keras(facemodel, 23,Convolution2D(2, kernel_size=(1, 1), activation='relu', name='fc8') )
-facemodel.add( Activation('softmax') )
-facemodel.summary()
 ############################################################# TRAINING DATA ##################################################
-
-# Gets the path for the current working directory
+#Gets the path for the current working directory
 PATH = os.getcwd()
 data_real_path = PATH + '/Frames/replay/train/real/**/*.jpg'
 data_attack_path = PATH + '/Frames/replay/train/attack/**/*.jpg'
 img_data_list = []
+count = 0
 
-"""
 for img in glob.glob(data_real_path, recursive = True):
 	img = image.load_img(os.path.realpath(img), target_size=(224,224))
 	x = image.img_to_array(img)
 	x = np.expand_dims(x, axis = 0)
 	x = preprocess_input(x)
 	img_data_list.append(x)
+	count += 1
 
-#print(len(img_data_list))
+print(count)
+count = 0
 
 for img in glob.glob(data_attack_path, recursive = True):
 	img = image.load_img(os.path.realpath(img), target_size=(224,224))
@@ -207,6 +193,10 @@ for img in glob.glob(data_attack_path, recursive = True):
 	x = np.expand_dims(x, axis = 0)
 	x = preprocess_input(x)
 	img_data_list.append(x)
+	count += 1
+
+print(count)
+
 
 #print(len(img_data_list))
 img_data = np.array(img_data_list)
@@ -221,84 +211,83 @@ num_classes = 2
 num_of_samples = img_data.shape[0]
 labels = np.ones((num_of_samples),dtype='int64')
 
-labels[0:8999] = 0 #Real
-labels[9000:37199] = 1 #Spoofing Attack
+labels[0:2819] = 0 #Real
+labels[2820:11669] = 1 #Spoofing Attack
 
-names = ['Real', 'Spoofing Attack']
+names = ['real', 'spoofing attack']
 #convert class labels to on-hot encoding
 Y = np_utils.to_categorical(labels,num_classes)
+"""
+X_train = []
+X_test = []
+Y_train = []
+Y_test = []
 
-#Shuffle the dataset
-x,y = shuffle(img_data,Y,random_state=2)
+X_train[0:5279] = img_data[0:5279]
+Y_train[0:5279] = Y[0:5279]
+X_test[0:3719] = img_data[5279:8999]
+Y_test[0:3719] = Y[5279:8999]
+X_train[5280:] = img_data[9000:33479]
+Y_train[5280:] = Y[9000:33479]
+X_test[3720:] = img_data[33480:]
+Y_test[3720:] = Y[33480:]
+"""
+x,y = shuffle(img_data,Y, random_state=2)
+
+del img_data
+del labels
+print("wow-nem sei como isto funcionou")
+
+
 #Split the dataset into training set and cross-validation set (80-20)
-X_train, X_test, Y_train, Y_test = train_test_split(x,y,test_size=  0.2, random_state = 2) 
+X_train, X_test, Y_train, Y_test = train_test_split(x,y,test_size=  0.20, random_state = 2, shuffle = True) 
 
-"""
-"""
-############################################ Convert a video to sequence of frames #######################################
-# Opens a video
-VidPath = '/replay/devel/attack/hand/'
+############################################################ CREATE AND CHANGE THE NEURAL NETWORK #########################################
+# Use this line to run using CPU
+#os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
-for fn in glob(PATH + VidPath + '*.mov'):
-	vidcap = cv2.VideoCapture(fn)
-	path = os.path.splitext(os.path.basename(fn))[0]
-	frameRate = vidcap.get(5)/5 # Gets the frame rate of the video divided by 5 to obtain 5 frames per second
-	#print("Frame Rate:%d , %d" % (frameRate, math.floor(frameRate)))
-	count = 1
+facemodel = vgg_face_blank()
+#facemodel.summary()
 
-	#Creates a directory to save image frames
-	pathlib.Path(PATH + '/Frames' + VidPath + path).mkdir(parents=True, exist_ok=True) #Creates a directory to save the frames
-		
-	while(vidcap.isOpened()):
-		frameID = vidcap.get(1) # Gets the current frame number
-		success, image = vidcap.read()
-		if( success != True):
-			break
-		if((frameID % math.floor(frameRate)) == 0):
-			gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-			#detect faces in the image: TER CUIDADO, ESTE ALGORITMO DETECTA TODAS AS CARAS NA IMAGEM - pode ser um problema
-			faces = faceCascade.detectMultiScale(image, 1.3, 5)
+#Loads the weights from a .mat file
+data = loadmat('vgg-face.mat', matlab_compatible=False, struct_as_record=False)
+l = data['layers']
+description = data['meta'][0,0].classes[0,0].description
 
-			#draw rectangle around the faces:
-			for (x,y,w,h) in faces:
-			   	cv2.rectangle(image, (x,y), (x+w,y+h), (0,0,0),0)
+copy_mat_to_keras(facemodel)
+facemodel.summary()
+del data
 
+num_classes = 2
+#Changes the fully connected layers
+last_layer = facemodel.get_layer('dropout_1').output
+x = Convolution2D(2622, kernel_size=(1, 1), activation='relu', name='fc7')(last_layer)
+x = Dropout(0.5)(x)
+x = Convolution2D(2, kernel_size=(1,1), activation='relu', name='fc8')(x)
+out = Dense(num_classes, activation='softmax', name='output')(x)
+custom_model = Model(facemodel.input, out)
+#custom_model.summary()
+del facemodel
 
-			try:
-				(x,y,w,h)
-			except NameError:
-				print('Oops some variable was not defined, face not detected')
-			else:
-				#Crops the images and resizes it
-				crpim = image[y:y+h, x:x+w]
-				crpim = cv2.resize(crpim, (224,224))
+#Choose the layers that you want to train
+for layer in custom_model.layers[:-4]:
+	layer.trainable = False
+sgd = optimizers.SGD(lr = 0.01, decay =0.0001 , momentum = 0.99,nesterov = True) #Values from Patch and Depth Base CNN
+custom_model.compile(loss = 'mean_squared_error', optimizer = sgd, metrics =['accuracy'])
 
-				cv2.imwrite(PATH + '/Frames' + VidPath + path + '/frame_%d.jpg' % count, crpim) # Save frame as a jpeg file
-				success,image = vidcap.read()
-				#print('Read a new frame: ', success, frameID)
-				count += 1
-"""
-########################################################## Test VGG-Face code ##########################################
-"""
-#Tests all the images in the directory, used to test vggface
-for fn in glob(PATH + '/vgg_face_test/*.jpg'):
-	image = cv2.imread(fn)
-	gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	#detect faces in the image: TER CUIDADO, ESTE ALGORITMO DETECTA TODAS AS CARAS NA IMAGEM - pode ser um problema
-	faces = faceCascade.detectMultiScale(gray, 1.3, 5)
-	#draw rectangle around the faces:
-	for (x,y,w,h) in faces:
-	   	cv2.rectangle(image, (x,y), (x+w,y+h), (0,255,0),2)
-	#Crops the images and resizes it
-	crpim = image[y:y+h, x:x+w]
-	crpim = cv2.resize(crpim, (224,224))
-	pred(facemodel, crpim, transform=False)
-	#pred(facemodel, crpim, transform=True) Better for low res images (?)
-"""
+custom_model.summary()
+
+t = time.time()
+hist = custom_model.fit(np.asarray(X_train),np.asarray(Y_train), batch_size =32, epochs = 12, verbose= 1, validation_data= (np.asarray(X_test), np.asarray(Y_test)))
+
+print('Training time: %s' % (t - time.time()))
+(loss, accuracy) = custom_model.evaluate(np.asarray(X_test), np.asarray(Y_test), batch_size=10, verbose=1)
+
+print("[INFO] loss={:.4f}, accuracy: {:.4f}%".format(loss,accuracy * 100))
+
 ######################################################################## PLOTS #########################################################
 
 # visualizing losses and accuracy
-"""
 train_loss=hist.history['loss']
 val_loss=hist.history['val_loss']
 train_acc=hist.history['acc']
@@ -328,7 +317,5 @@ plt.legend(['train','val'],loc=4)
 #print plt.style.available # use bmh, classic,ggplot for big pictures
 plt.style.use(['classic'])
 savefig('plot2.pdf', bbox_inches='tight')
-
-"""
 
 K.clear_session()
