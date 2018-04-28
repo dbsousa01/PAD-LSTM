@@ -264,24 +264,25 @@ last_layer = facemodel.get_layer('dropout_1').output
 x = Convolution2D(2622, kernel_size=(1, 1), activation='relu', name='fc7')(last_layer)
 x = Dropout(0.5)(x)
 x = Convolution2D(2, kernel_size=(1,1), activation='relu', name='fc8')(x)
+x = Flatten()(x)
 out = Dense(num_classes, activation='softmax', name='output')(x)
 custom_model = Model(facemodel.input, out)
 #custom_model.summary()
 del facemodel
 
 #Choose the layers that you want to train
-for layer in custom_model.layers[:-4]:
+for layer in custom_model.layers[:-5]:
 	layer.trainable = False
+
 sgd = optimizers.SGD(lr = 0.01, decay =0.0001 , momentum = 0.99,nesterov = True) #Values from Patch and Depth Base CNN
 custom_model.compile(loss = 'mean_squared_error', optimizer = sgd, metrics =['accuracy'])
-
 custom_model.summary()
 
 t = time.time()
-hist = custom_model.fit(np.asarray(X_train),np.asarray(Y_train), batch_size =32, epochs = 12, verbose= 1, validation_data= (np.asarray(X_test), np.asarray(Y_test)))
+hist = custom_model.fit(X_train,Y_train, batch_size =32, epochs = 24, verbose= 1, validation_data= (X_test, Y_test))
 
-print('Training time: %s' % (t - time.time()))
-(loss, accuracy) = custom_model.evaluate(np.asarray(X_test), np.asarray(Y_test), batch_size=10, verbose=1)
+print('Training time: %s' % (time.time()-t))
+(loss, accuracy) = custom_model.evaluate(X_test,Y_test, batch_size=10, verbose=1)
 
 print("[INFO] loss={:.4f}, accuracy: {:.4f}%".format(loss,accuracy * 100))
 
@@ -304,7 +305,7 @@ plt.grid(True)
 plt.legend(['train','val'])
 #print plt.style.available # use bmh, classic,ggplot for big pictures
 plt.style.use(['classic'])
-savefig('plot1.pdf', bbox_inches='tight')
+plt.savefig('plot1.pdf', bbox_inches='tight')
 
 plt.figure(2,figsize=(7,5))
 plt.plot(xc,train_acc)
@@ -316,6 +317,6 @@ plt.grid(True)
 plt.legend(['train','val'],loc=4)
 #print plt.style.available # use bmh, classic,ggplot for big pictures
 plt.style.use(['classic'])
-savefig('plot2.pdf', bbox_inches='tight')
+plt.savefig('plot2.pdf', bbox_inches='tight')
 
 K.clear_session()
