@@ -14,7 +14,7 @@ from keras.applications.vgg16 import preprocess_input, decode_predictions
 #from imagenet_utils import decode_predictions
 from keras import optimizers
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Flatten, Dropout, Activation, Lambda, Permute, Reshape
+from keras.layers import InputLayer, Dense, Flatten, Dropout, Activation, Lambda, Permute, Reshape
 from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras.utils import np_utils
 from sklearn.utils import shuffle
@@ -41,7 +41,7 @@ def convblock(cdim, nb, bits=3):
     
     for k in range(1,bits+1):
         convname = 'conv'+str(nb)+'_'+str(k)
-        L.append( Convolution2D(cdim, kernel_size=(3, 3), padding='same', activation='relu', name=convname) )
+        L.append( Convolution2D(cdim,kernel_size=(3,3), padding='same', activation='relu', name=convname) )
     
     L.append( MaxPooling2D((2, 2), strides=(2, 2)) )
     
@@ -56,7 +56,7 @@ def vgg_face_blank():
         mdl = Sequential()
         
         # First layer is a dummy-permutation = Identity to specify input shape
-        mdl.add( Permute((1,2,3), input_shape=(224,224,3)) ) # WARNING : 0 is the sample dim
+        mdl.add(InputLayer(input_shape=(224,224,3)) ) # WARNING : 0 is the sample dim
 
         for l in convblock(64, 1, bits=2):
             mdl.add(l)
@@ -73,13 +73,13 @@ def vgg_face_blank():
         for l in convblock(512, 5, bits=3):
             mdl.add(l)
         
-        mdl.add( Convolution2D(4096, kernel_size=(7, 7), activation='relu', name='fc6') )
+        mdl.add( Convolution2D(4096,kernel_size=(7,7), activation='relu', name='fc6') )
         if withDO:
             mdl.add( Dropout(0.5) )
-        mdl.add( Convolution2D(4096, kernel_size=(1, 1), activation='relu', name='fc7') )
+        mdl.add( Convolution2D(4096,kernel_size=(1,1), activation='relu', name='fc7') )
         if withDO:
             mdl.add( Dropout(0.5) )
-        mdl.add( Convolution2D(2622, kernel_size=(1, 1), activation='relu', name='fc8') )
+        mdl.add( Convolution2D(2622,kernel_size=(1,1), activation='relu', name='fc8') )
         mdl.add( Flatten() )
         mdl.add( Activation('softmax') )
         
@@ -191,7 +191,7 @@ for img in glob.glob(data_attack_path, recursive = True):
 	img = image.load_img(os.path.realpath(img), target_size=(224,224))
 	x = image.img_to_array(img)
 	x = np.expand_dims(x, axis = 0)
-	x = preprocess_input(x)
+	x = preprocess_input(x) #Try preprocessing.StandardScaler()
 	img_data_list.append(x)
 	count += 1
 
@@ -217,6 +217,7 @@ labels[2820:11669] = 1 #Spoofing Attack
 names = ['real', 'spoofing attack']
 #convert class labels to on-hot encoding
 Y = np_utils.to_categorical(labels,num_classes)
+
 """
 X_train = []
 X_test = []
@@ -236,11 +237,11 @@ x,y = shuffle(img_data,Y, random_state=2)
 
 del img_data
 del labels
-print("wow-nem sei como isto funcionou")
 
 
 #Split the dataset into training set and cross-validation set (80-20)
 X_train, X_test, Y_train, Y_test = train_test_split(x,y,test_size=  0.20, random_state = 2, shuffle = True) 
+#print(X_train.shape, Y_train.shape, X_test.shape, Y_test.shape)
 
 ############################################################ CREATE AND CHANGE THE NEURAL NETWORK #########################################
 # Use this line to run using CPU
@@ -250,7 +251,7 @@ facemodel = vgg_face_blank()
 #facemodel.summary()
 
 #Loads the weights from a .mat file
-data = loadmat('vgg-face.mat', matlab_compatible=False, struct_as_record=False)
+data = loadmat('cnn_weights/vgg-face.mat', matlab_compatible=False, struct_as_record=False)
 l = data['layers']
 description = data['meta'][0,0].classes[0,0].description
 
@@ -260,26 +261,28 @@ del data
 
 num_classes = 2
 #Changes the fully connected layers
-last_layer = facemodel.get_layer('dropout_1').output
-x = Convolution2D(2622, kernel_size=(1, 1), activation='relu', name='fc7')(last_layer)
-x = Dropout(0.5)(x)
-x = Convolution2D(2, kernel_size=(1,1), activation='relu', name='fc8')(x)
+last_layer = facemodel.get_layer('dropout_2').output
+x = Convolution2D(num_classes,kernel_size=(1,1), activation='relu', name='fc8')(last_layer)
 x = Flatten()(x)
-out = Dense(num_classes, activation='softmax', name='output')(x)
+out = Activation('softmax')(x) #Try sigmoid if it does not work. It is better for binary classification. it was softmax before
 custom_model = Model(facemodel.input, out)
 #custom_model.summary()
 del facemodel
 
 #Choose the layers that you want to train
-for layer in custom_model.layers[:-5]:
-	layer.trainable = False
+#for layer in custom_model.layers[:-7]:
+#	layer.trainable = False
 
-sgd = optimizers.SGD(lr = 0.01, decay =0.0001 , momentum = 0.99,nesterov = True) #Values from Patch and Depth Base CNN
-custom_model.compile(loss = 'mean_squared_error', optimizer = sgd, metrics =['accuracy'])
+# NOTA: usar StandardScaler para normalizar o sinal de entrada e alterar as funções todas para sigmoid
+
+#Should be low values, lr = 0,0001 decay = 0,0005 e.g
+sgd = optimizers.SGD(lr = 0.00001, decay =0.00005 , momentum = 0.9,nesterov = True) #lr = 0.01 decay=0.0001: Values from Patch and Depth Base CNN
+custom_model.compile(loss = 'binary_crossentropy', optimizer = sgd, metrics =['accuracy'])
 custom_model.summary()
 
 t = time.time()
-hist = custom_model.fit(X_train,Y_train, batch_size =32, epochs = 24, verbose= 1, validation_data= (X_test, Y_test))
+n_epochs = 200
+hist = custom_model.fit(X_train,Y_train, batch_size = 32, epochs = n_epochs, verbose= 1, validation_data= (X_test, Y_test))
 
 print('Training time: %s' % (time.time()-t))
 (loss, accuracy) = custom_model.evaluate(X_test,Y_test, batch_size=10, verbose=1)
@@ -293,30 +296,51 @@ train_loss=hist.history['loss']
 val_loss=hist.history['val_loss']
 train_acc=hist.history['acc']
 val_acc=hist.history['val_acc']
-xc=range(12)
+xc=range(n_epochs)
+
+plt.figure(1,figsize=(7,5))
+plt.plot(xc,train_acc)
+plt.plot(xc,val_acc)
+plt.xlabel('num of Epochs')
+plt.ylabel('accuracy')
+plt.title('Model Accuracy')
+plt.grid(color = '#7f7f7f', linestyle = 'dotted')
+plt.legend(['train','val'], loc= 1)
+#print plt.style.available # use bmh, classic,ggplot for big pictures
+plt.style.use(['classic'])
+plt.savefig('plot1.pdf', bbox_inches='tight')
+plt.close()
 
 plt.figure(1,figsize=(7,5))
 plt.plot(xc,train_loss)
 plt.plot(xc,val_loss)
 plt.xlabel('num of Epochs')
 plt.ylabel('loss')
-plt.title('train_loss vs val_loss')
-plt.grid(True)
-plt.legend(['train','val'])
-#print plt.style.available # use bmh, classic,ggplot for big pictures
-plt.style.use(['classic'])
-plt.savefig('plot1.pdf', bbox_inches='tight')
-
-plt.figure(2,figsize=(7,5))
-plt.plot(xc,train_acc)
-plt.plot(xc,val_acc)
-plt.xlabel('num of Epochs')
-plt.ylabel('accuracy')
-plt.title('train_acc vs val_acc')
-plt.grid(True)
-plt.legend(['train','val'],loc=4)
+plt.title('Model Loss')
+plt.grid(color = '#7f7f7f',linestyle = 'dotted')
+plt.legend(['train','val'] , loc = 1)
 #print plt.style.available # use bmh, classic,ggplot for big pictures
 plt.style.use(['classic'])
 plt.savefig('plot2.pdf', bbox_inches='tight')
-
+plt.close()
+"""
+# list all data in history
+print(hist.history.keys())
+# summarize history for accuracy
+plt.plot(hist.history['acc'])
+plt.plot(hist.history['val_acc'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'val'], loc='upper left')
+plt.savefig('plot1.pdf', bbox_inches='tight')
+# summarize history for loss
+plt.plot(hist.history['loss'])
+plt.plot(hist.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'val'], loc='upper left')
+plt.savefig('plot2.pdf', bbox_inches='tight')
+"""
 K.clear_session()
