@@ -13,7 +13,7 @@ from keras.applications.vgg16 import preprocess_input, decode_predictions
 #from keras.applications.imagenet_utils import preprocess_input
 #from imagenet_utils import decode_predictions
 from keras import optimizers
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, model_from_json, load_model
 from keras.layers import InputLayer, Dense, Flatten, Dropout, Activation, Lambda, Permute, Reshape
 from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras.utils import np_utils
@@ -240,7 +240,7 @@ del labels
 
 
 #Split the dataset into training set and cross-validation set (80-20)
-X_train, X_test, Y_train, Y_test = train_test_split(x,y,test_size=  0.20, random_state = 2, shuffle = True) 
+X_train, X_val, Y_train, Y_val = train_test_split(x,y,test_size=  0.20, random_state = 2, shuffle = True) 
 #print(X_train.shape, Y_train.shape, X_test.shape, Y_test.shape)
 
 ############################################################ CREATE AND CHANGE THE NEURAL NETWORK #########################################
@@ -270,8 +270,8 @@ custom_model = Model(facemodel.input, out)
 del facemodel
 
 #Choose the layers that you want to train
-#for layer in custom_model.layers[:-7]:
-#	layer.trainable = False
+for layer in custom_model.layers[:-7]:
+	layer.trainable = False
 
 # NOTA: usar StandardScaler para normalizar o sinal de entrada e alterar as funções todas para sigmoid
 
@@ -281,16 +281,22 @@ custom_model.compile(loss = 'binary_crossentropy', optimizer = sgd, metrics =['a
 custom_model.summary()
 
 t = time.time()
-n_epochs = 200
-hist = custom_model.fit(X_train,Y_train, batch_size = 32, epochs = n_epochs, verbose= 1, validation_data= (X_test, Y_test))
+n_epochs = 150
+hist = custom_model.fit(X_train,Y_train, batch_size = 32, epochs = n_epochs, verbose= 1, validation_data= (X_val, Y_val))
 
 print('Training time: %s' % (time.time()-t))
-(loss, accuracy) = custom_model.evaluate(X_test,Y_test, batch_size=10, verbose=1)
+(loss, accuracy) = custom_model.evaluate(X_val,Y_val, batch_size=10, verbose=1)
+
+#Save the model and its weights for testing
+custom_model.save(PATH + '/cnn_weights/my_model.h5')
 
 print("[INFO] loss={:.4f}, accuracy: {:.4f}%".format(loss,accuracy * 100))
 
 ######################################################################## PLOTS #########################################################
-
+# 
+#
+#VER ISTO PARA JUSTIFICAR A FALTA DE OVERFITTING: https://stackoverflow.com/questions/45135551/validation-accuracy-is-always-greater-than-training-accuracy-in-keras
+#
 # visualizing losses and accuracy
 train_loss=hist.history['loss']
 val_loss=hist.history['val_loss']
@@ -305,7 +311,7 @@ plt.xlabel('num of Epochs')
 plt.ylabel('accuracy')
 plt.title('Model Accuracy')
 plt.grid(color = '#7f7f7f', linestyle = 'dotted')
-plt.legend(['train','val'], loc= 1)
+plt.legend(['train','val'], loc= 7)
 #print plt.style.available # use bmh, classic,ggplot for big pictures
 plt.style.use(['classic'])
 plt.savefig('plot1.pdf', bbox_inches='tight')
@@ -318,7 +324,7 @@ plt.xlabel('num of Epochs')
 plt.ylabel('loss')
 plt.title('Model Loss')
 plt.grid(color = '#7f7f7f',linestyle = 'dotted')
-plt.legend(['train','val'] , loc = 1)
+plt.legend(['train','val'] , loc = 7)
 #print plt.style.available # use bmh, classic,ggplot for big pictures
 plt.style.use(['classic'])
 plt.savefig('plot2.pdf', bbox_inches='tight')
