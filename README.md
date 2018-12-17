@@ -13,4 +13,6 @@ Face recognition systems are increasingly important in today’s society, being 
 cnn_lstm.py - The main kernel where the CNN + LSTM training happens  
 fusion.py - Architecture fusion which lead to worse results  
 VideoCapture.py - Used to capture frames from the database videos  
-test_lstm.py - Testing of the neural network  
+test_lstm.py - Testing of the neural network
+
+The VGG-Face model was built according to this blogpost: https://aboveintelligent.com/face-recognition-with-keras-and-opencv-2baf2a83b799 The weights of the trained model can also be found there.
